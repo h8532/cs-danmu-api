@@ -5,8 +5,8 @@ permissions:
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # 每天午夜执行
-  workflow_dispatch:     # 允许手动触发
+    - cron: "0 0 * * *"
+  workflow_dispatch:
 
 jobs:
   sync_with_upstream:
@@ -20,7 +20,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sync Upstream (exclude workflows)
+      - name: Sync from upstream
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -29,20 +29,16 @@ jobs:
           target_sync_branch: main
           test_mode: false
 
-          # 🔴 关键：排除 workflows
-          exclude: |
-            .github/workflows/**
-
-      - name: Check for new commits
-        if: success()
-        run: echo "Sync completed successfully"
-
-      - name: Check for Failure
-        if: failure()
+      # 🔴 关键一步：删除 workflows
+      - name: Remove upstream workflows
         run: |
-          echo "[Error] Sync failed. This might be due to:"
-          echo "1. Changes in the upstream workflow file"
-          echo "2. Merge conflicts that need manual resolution"
-          echo "3. Network issues"
-          echo "Please check the logs and consider manual sync if needed."
-          exit 1
+          rm -rf .github/workflows
+          git status
+
+      - name: Commit and push cleaned sync
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "sync upstream (exclude workflows)" || echo "No changes"
+          git push
