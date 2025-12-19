@@ -17,11 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 从 worker.js 中读取版本号
-      - name: Read version from worker.js
+      # 从 danmu_api/configs/globals.js 中读取版本号
+      - name: Read version from globals.js
         id: version
         run: |
-          VERSION=$(grep 'const VERSION' danmu_api/worker.js | sed -E 's/.*const VERSION = "(.*)".*/\1/')
+          VERSION=$(grep "VERSION:" danmu_api/configs/globals.js | sed -E "s/.*VERSION: '(.*)'.*/\1/")
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 
       # 设置 Docker 镜像缓存（可选，加速构建）
@@ -36,10 +36,10 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       # 构建 Docker 镜像，并指定平台为 amd64 和 arm64，推送到 Docker Hub
+      # 使用单条命令同时指定两个标签，避免重复构建
       - name: Build and Push Docker image with version and latest tag
         run: |
-          # 构建带版本号的镜像并推送
-          docker buildx build --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_USERNAME }}/danmu-api:${{ env.VERSION }} --push .
-
-          # 构建带 latest 标签的镜像并推送
-          docker buildx build --platform linux/amd64,linux/arm64 -t ${{ secrets.DOCKER_USERNAME }}/danmu-api:latest --push .
+          docker buildx build --platform linux/amd64,linux/arm64 \
+            -t ${{ secrets.DOCKER_USERNAME }}/danmu-api:${{ env.VERSION }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/danmu-api:latest \
+            --push .
